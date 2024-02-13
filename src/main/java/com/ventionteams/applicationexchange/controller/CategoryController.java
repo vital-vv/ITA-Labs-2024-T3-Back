@@ -39,7 +39,9 @@ public class CategoryController {
     public ResponseEntity<PageResponse<LotReadDTO>> findByCategoryId(@PathVariable("id") Integer id,
                                                                      @RequestParam Integer page,
                                                                      @RequestParam Integer limit) {
-        return ok().body(PageResponse.of(lotService.findLotsByCategoryId(id, page, limit)));
+        return  limit < 1 || limit > 100
+                ? badRequest().build()
+                : ok().body(PageResponse.of(lotService.findLotsByCategoryId(id, page, limit)));
     }
 
     @PostMapping

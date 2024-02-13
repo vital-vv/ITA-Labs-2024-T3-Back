@@ -22,7 +22,9 @@ public class UserController {
     @GetMapping
     public ResponseEntity<PageResponse<UserReadDto>> findAll(@RequestParam Integer page,
                                                              @RequestParam Integer limit) {
-        return ok().body(PageResponse.of(userService.findAll(page, limit)));
+        return  limit < 1 || limit > 10
+                ? badRequest().build()
+                : ok().body(PageResponse.of(userService.findAll(page, limit)));
     }
 
     @GetMapping("/{id}")

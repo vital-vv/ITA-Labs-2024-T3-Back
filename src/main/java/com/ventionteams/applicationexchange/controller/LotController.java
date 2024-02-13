@@ -20,7 +20,9 @@ public class LotController {
     @GetMapping
     public ResponseEntity<PageResponse<LotReadDTO>> findAll(@RequestParam Integer page,
                                                             @RequestParam Integer limit) {
-        return ok(PageResponse.of(lotService.findAll(page, limit)));
+        return  limit < 1 || limit > 100
+                ? badRequest().build()
+                : ok(PageResponse.of(lotService.findAll(page, limit)));
     }
 
     @GetMapping("/{id}")
