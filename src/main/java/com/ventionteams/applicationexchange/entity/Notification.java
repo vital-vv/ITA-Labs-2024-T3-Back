@@ -47,4 +47,7 @@ public class Notification {
     @Column(name = "to")
     @ManyToOne
     private User to;
+
+    @Column(name = "description")
+    private String description;
 }
