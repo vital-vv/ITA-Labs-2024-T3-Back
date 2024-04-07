@@ -1,15 +1,17 @@
 package com.ventionteams.applicationexchange.dto.create;
 
-import com.ventionteams.applicationexchange.entity.enumeration.LotStatus;
 import com.ventionteams.applicationexchange.entity.enumeration.Packaging;
 import com.ventionteams.applicationexchange.entity.enumeration.Weight;
+import lombok.Builder;
 
 import java.util.List;
 
+@Builder
 public record LotFilterDTO(
         Integer category,
         List<Packaging> packaging,
-        List<Integer> locations,
+        List<String> countries,
+        List<String> cities,
         List<Integer> varieties,
         List<Weight> weights,
         Long fromQuantity,
@@ -18,7 +20,7 @@ public record LotFilterDTO(
         Integer toSize,
         Integer fromPrice,
         Integer toPrice,
-        LotStatus lotStatus,
+        String lotStatus,
         String keyword
 ) {
 }

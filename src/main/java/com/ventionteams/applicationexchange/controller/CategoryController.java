@@ -2,15 +2,15 @@ package com.ventionteams.applicationexchange.controller;
 
 import com.ventionteams.applicationexchange.annotation.ValidatedController;
 import com.ventionteams.applicationexchange.dto.create.CategoryCreateEditDto;
-import com.ventionteams.applicationexchange.dto.read.CategoryReadDto;
 import com.ventionteams.applicationexchange.dto.create.LotFilterDTO;
+import com.ventionteams.applicationexchange.dto.create.UserAuthDto;
+import com.ventionteams.applicationexchange.dto.read.CategoryReadDto;
 import com.ventionteams.applicationexchange.dto.read.LotReadDTO;
 import com.ventionteams.applicationexchange.dto.read.MainPageCategoryReadDto;
 import com.ventionteams.applicationexchange.dto.read.PageResponse;
-import com.ventionteams.applicationexchange.dto.create.UserAuthDto;
 import com.ventionteams.applicationexchange.entity.LotSortCriteria;
+import com.ventionteams.applicationexchange.entity.enumeration.Currency;
 import com.ventionteams.applicationexchange.entity.enumeration.LotSortField;
-import com.ventionteams.applicationexchange.entity.enumeration.LotStatus;
 import com.ventionteams.applicationexchange.entity.enumeration.Packaging;
 import com.ventionteams.applicationexchange.entity.enumeration.Weight;
 import com.ventionteams.applicationexchange.service.CategoryService;
@@ -29,14 +29,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.print.attribute.standard.Media;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -67,11 +65,13 @@ public class CategoryController {
 
     @GetMapping("/{id}/lots")
     public ResponseEntity<PageResponse<LotReadDTO>> findLotsWithFilter(@RequestParam(defaultValue = "1") Integer page,
+                                                                       @RequestParam(required = false) Currency currency,
                                                                        @RequestParam(defaultValue = "10") @Min(1) @Max(100) Integer limit,
                                                                        @AuthenticationPrincipal UserAuthDto user,
                                                                        @PathVariable("id") @Min(1) @Max(1000) Integer category,
                                                                        @RequestParam(required = false) List<Packaging> packaging,
-                                                                       @RequestParam(required = false) List<Integer> locations,
+                                                                       @RequestParam(required = false) List<String> countries,
+                                                                       @RequestParam(required = false) List<String> cities,
                                                                        @RequestParam(required = false) List<Integer> varieties,
                                                                        @RequestParam(required = false) List<Weight> weights,
                                                                        @RequestParam(required = false) @Min(1) @Max(1000) Long fromQuantity,
@@ -82,17 +82,21 @@ public class CategoryController {
                                                                        @RequestParam(required = false) @Min(1) @Max(100000) Integer toPrice,
                                                                        @RequestParam(required = false) LotSortField sortField,
                                                                        @RequestParam(required = false) Sort.Direction sortOrder,
+                                                                       @RequestParam(required = false, defaultValue = "ACTIVE") String status,
                                                                        @RequestParam(required = false) String keyword) {
-        final LotFilterDTO filter = new LotFilterDTO(category, packaging, locations, varieties, weights, fromQuantity, toQuantity, fromSize, toSize, fromPrice, toPrice, LotStatus.ACTIVE, keyword);
+        final LotFilterDTO filter = new LotFilterDTO(category, packaging, countries, cities, varieties, weights, fromQuantity, toQuantity, fromSize, toSize, fromPrice, toPrice, status, keyword);
         final LotSortCriteria sort = LotSortCriteria.builder()
                 .field(Optional.ofNullable(sortField).orElse(LotSortField.CREATED_AT))
                 .order(Optional.ofNullable(sortOrder).orElse(Sort.Direction.DESC))
                 .build();
         UUID id = null;
+        if (user == null && currency == null) {
+            currency = Currency.USD;
+        }
         if (user != null) {
             id = user.id();
         }
-        return ok(PageResponse.of(lotService.findAll(page, limit, filter, sort, id)));
+        return ok(PageResponse.of(lotService.findAll(page, limit, filter, sort, id, currency)));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

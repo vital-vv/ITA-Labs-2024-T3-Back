@@ -8,6 +8,7 @@ import com.ventionteams.applicationexchange.entity.enumeration.Weight;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static org.springframework.util.CollectionUtils.isEmpty;
@@ -23,7 +24,8 @@ public class LotSpecification {
                 .or(filter.category() == null ? null : inParentCategories(filter.category()))
                 .and(isEmpty(filter.packaging()) ? null : inPackaging(filter.packaging()))
                 .and(isEmpty(filter.weights()) ? null : inWeight(filter.weights()))
-                .and(isEmpty(filter.locations()) ? null : inLocations(filter.locations()))
+                .and(isEmpty(filter.countries()) ? null : inCountries(filter.countries()))
+                .and(isEmpty(filter.cities()) ? null : inCities(filter.cities()))
                 .and(isEmpty(filter.varieties()) ? null : inVarieties(filter.varieties()))
                 .and(filter.fromQuantity() == null ? null : fromQuantity(filter.fromQuantity()))
                 .and(filter.toQuantity() == null ? null : toQuantity(filter.toQuantity()))
@@ -31,7 +33,7 @@ public class LotSpecification {
                 .and(filter.toSize() == null ? null : toSize(filter.toSize()))
                 .and(filter.fromPrice() == null ? null : fromPrice(filter.fromPrice()))
                 .and(filter.toPrice() == null ? null : toPrice(filter.toPrice()))
-                .and(filter.lotStatus() == null ? null : inLotStatus(filter.lotStatus()))
+                .and(filter.lotStatus() == null ? null : inLotStatus(getStatusList(filter.lotStatus())))
                 .and(filter.keyword() == null ? null : byKeyword(filter.keyword()));
     }
 
@@ -65,11 +67,21 @@ public class LotSpecification {
         };
     }
 
-    private static Specification<Lot> inLocations(List<Integer> locations) {
+    private static Specification<Lot> inCountries(List<String> countries) {
         return (root, query, criteriaBuilder) -> {
-            CriteriaBuilder.In<Integer> inClause = criteriaBuilder.in(root.get("location").get("id"));
-            for (Integer location : locations) {
-                inClause.value(location);
+            CriteriaBuilder.In<String> inClause = criteriaBuilder.in(root.get("country"));
+            for (String country : countries) {
+                inClause.value(country);
+            }
+            return inClause;
+        };
+    }
+
+    private static Specification<Lot> inCities(List<String> cities) {
+        return (root, query, criteriaBuilder) -> {
+            CriteriaBuilder.In<String> inClause = criteriaBuilder.in(root.get("region"));
+            for (String city : cities) {
+                inClause.value(city);
             }
             return inClause;
         };
@@ -97,17 +109,20 @@ public class LotSpecification {
 
     private static Specification<Lot> fromSize(Integer fromSize) {
         return (root, query, criteriaBuilder) ->
-                criteriaBuilder.greaterThanOrEqualTo(root.get("size"), fromSize);
+                criteriaBuilder.greaterThanOrEqualTo(root.get("fromSize"), fromSize);
     }
 
     private static Specification<Lot> toSize(Integer toSize) {
         return (root, query, criteriaBuilder) ->
-                criteriaBuilder.lessThanOrEqualTo(root.get("size"), toSize);
+                criteriaBuilder.lessThanOrEqualTo(root.get("toSize"), toSize);
     }
 
-    private static Specification<Lot> inLotStatus(LotStatus lotStatus) {
-        return (root, query, criteriaBuilder) ->
-                criteriaBuilder.equal(root.get("status"), lotStatus);
+    private static Specification<Lot> inLotStatus(List<LotStatus> lotStatuses) {
+        return (root, query, criteriaBuilder) -> {
+            CriteriaBuilder.In<LotStatus> inClause = criteriaBuilder.in(root.get("status"));
+            lotStatuses.forEach(inClause::value);
+            return inClause;
+        };
     }
 
     private static Specification<Lot> fromPrice(Integer fromPrice) {
@@ -120,8 +135,15 @@ public class LotSpecification {
                 criteriaBuilder.lessThanOrEqualTo(root.get("totalPrice"), toPrice);
     }
 
-    private static Specification<Lot> byKeyword(String keyword){
+    private static Specification<Lot> byKeyword(String keyword) {
         return (root, query, criteriaBuilder) ->
                 criteriaBuilder.equal(criteriaBuilder.literal("KEYWORD"), criteriaBuilder.literal(keyword));
+    }
+
+    private static List<LotStatus> getStatusList(String statuses) {
+        return Arrays.stream(statuses.split(","))
+                .map(String::trim)
+                .map(LotStatus::valueOf)
+                .toList();
     }
 }

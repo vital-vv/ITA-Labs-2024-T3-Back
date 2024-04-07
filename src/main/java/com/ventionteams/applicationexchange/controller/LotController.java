@@ -6,6 +6,7 @@ import com.ventionteams.applicationexchange.dto.create.UserAuthDto;
 import com.ventionteams.applicationexchange.dto.read.LotReadDTO;
 import com.ventionteams.applicationexchange.dto.read.PageResponse;
 import com.ventionteams.applicationexchange.entity.LotSortCriteria;
+import com.ventionteams.applicationexchange.entity.enumeration.Currency;
 import com.ventionteams.applicationexchange.entity.enumeration.LotSortField;
 import com.ventionteams.applicationexchange.entity.enumeration.LotStatus;
 import com.ventionteams.applicationexchange.service.ImageService;
@@ -48,9 +49,11 @@ public class LotController {
     private final ImageService imageService;
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<PageResponse<LotReadDTO>> findLotsByStatus(@RequestParam(defaultValue = "1") Integer page,
                                                                      @RequestParam(defaultValue = "10") @Min(1) @Max(100) Integer limit,
                                                                      @RequestParam LotStatus lotStatus,
+                                                                     @RequestParam(required = false) Currency currency,
                                                                      @RequestParam(required = false) LotSortField sortField,
                                                                      @RequestParam(required = false) Sort.Direction sortOrder,
                                                                      @AuthenticationPrincipal UserAuthDto user) {
@@ -59,20 +62,28 @@ public class LotController {
                 .order(Optional.ofNullable(sortOrder).orElse(Sort.Direction.DESC))
                 .build();
         UUID id = null;
+        if (user == null && currency == null) {
+            currency = Currency.USD;
+        }
         if (user != null) {
             id = user.id();
         }
-        return ok(PageResponse.of(lotService.findByStatus(page, limit, lotStatus, sort, id)));
+        return ok(PageResponse.of(lotService.findByStatus(page, limit, lotStatus, sort, id, currency)));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<LotReadDTO> findById(@PathVariable("id") Long id,
+                                               @RequestParam(required = false) Currency currency,
                                                @AuthenticationPrincipal UserAuthDto user) {
         UUID uuid = null;
+
+        if (user == null && currency == null) {
+            currency = Currency.USD;
+        }
         if (user != null) {
             uuid = user.id();
         }
-        return lotService.findById(id, uuid)
+        return lotService.findById(id, uuid, currency)
                 .map(obj -> ok().body(obj))
                 .orElseGet(notFound()::build);
     }
@@ -103,6 +114,24 @@ public class LotController {
                 : notFound().build();
     }
 
+    @PostMapping("/{id}/deactivate")
+    @PreAuthorize("hasAnyAuthority('USER')")
+    public ResponseEntity<Void> deactivate(@PathVariable Long id,
+                                           @AuthenticationPrincipal UserAuthDto user) {
+        return lotService.deactivate(id, user).isPresent()
+                ? ok().build()
+                : notFound().build();
+    }
+
+    @PostMapping("/{id}/confirm")
+    @PreAuthorize("hasAnyAuthority('USER')")
+    public ResponseEntity<Void> confirm(@PathVariable Long id,
+                                        @AuthenticationPrincipal UserAuthDto user) {
+        return lotService.confirm(id, user).isPresent()
+                ? ok().build()
+                : notFound().build();
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyAuthority('USER')")
@@ -124,6 +153,7 @@ public class LotController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('USER', 'ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable("id") Long id,
                                        @AuthenticationPrincipal UserAuthDto user) {
         return lotService.delete(id, user)

@@ -38,16 +38,17 @@ public class LotReadDTO {
     private LotStatus status;
     @JsonProperty("expiration_date")
     private Instant expirationDate;
-    private Integer size;
+    private Integer fromSize;
+    private Integer toSize;
     private Packaging packaging;
     @JsonProperty("created_at")
     private Instant createdAt;
     @JsonProperty("created_by")
     private String createdBy;
     @JsonProperty("total_price")
-    private Long totalPrice;
+    private Double totalPrice;
     @JsonProperty("start_price")
-    private Long startPrice;
+    private Double startPrice;
     @JsonProperty("length_unit")
     private LengthUnit lengthUnit;
     private BidReadDto leading;
@@ -55,4 +56,6 @@ public class LotReadDTO {
     @JsonProperty("bid_quantity")
     private Integer bidQuantity;
     private Currency currency;
+    @JsonProperty("reject_message")
+    private String rejectMessage;
 }

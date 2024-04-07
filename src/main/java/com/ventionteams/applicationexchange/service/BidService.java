@@ -3,12 +3,10 @@ package com.ventionteams.applicationexchange.service;
 import com.ventionteams.applicationexchange.annotation.TransactionalService;
 import com.ventionteams.applicationexchange.dto.create.BidCreateDto;
 import com.ventionteams.applicationexchange.dto.create.UserAuthDto;
-import com.ventionteams.applicationexchange.dto.read.BidForUserDto;
 import com.ventionteams.applicationexchange.dto.read.BidReadDto;
 import com.ventionteams.applicationexchange.entity.Bid;
 import com.ventionteams.applicationexchange.entity.Lot;
 import com.ventionteams.applicationexchange.entity.User;
-import com.ventionteams.applicationexchange.entity.enumeration.BidStatus;
 import com.ventionteams.applicationexchange.entity.enumeration.LotStatus;
 import com.ventionteams.applicationexchange.exception.AuctionEndedException;
 import com.ventionteams.applicationexchange.exception.IllegalPriceException;
@@ -39,6 +37,7 @@ public class BidService extends EntityRelatedService {
     private final LotRepository lotRepository;
     private final UserRepository userRepository;
     private final BidMapper bidMapper;
+    private final RatesService ratesService;
 
     public Page<BidReadDto> findAll(Integer page, Integer limit) {
         PageRequest req = PageRequest.of(page - 1, limit);
@@ -54,7 +53,9 @@ public class BidService extends EntityRelatedService {
     @Transactional
     public BidReadDto create(BidCreateDto dto, UserAuthDto userDto) {
         Optional<User> user = userRepository.findById(userDto.id());
-        validateEntity(user, () -> {throw new UserNotRegisteredException();});
+        validateEntity(user, () -> {
+            throw new UserNotRegisteredException();
+        });
         return Optional.of(dto)
                 .map(bidMapper::toBid)
                 .map(bid -> {
@@ -83,22 +84,22 @@ public class BidService extends EntityRelatedService {
         }
 
         lot.setBidQuantity(lot.getBidQuantity() + 1);
-
+        double bidAmount = ratesService.convertToUSD(bid.getAmount(), bid.getCurrency());
+        bid.setAmount(bidAmount);
         bidRepository.findByLotIdAndStatus(lotId, LEADING)
                 .ifPresentOrElse(prevBid -> {
-                    long bidAmount = bid.getAmount();
-                    long startPrice = lot.getStartPrice();
-                    long totalPrice = lot.getTotalPrice();
+                    double startPrice = lot.getStartPrice();
+                    double totalPrice = lot.getTotalPrice();
 
                     if (startPrice <= bidAmount && bidAmount <= totalPrice - 1) {
                         prevBid.setStatus(OVERBID);
-                        if (bidAmount == totalPrice - 1) {
+                        if (bidAmount >= totalPrice - 1) {
                             lot.setStatus(LotStatus.AUCTION_ENDED);
                         }
-                        lot.setStartPrice(bid.getAmount() + 1);
+                        lot.setStartPrice(bidAmount + 1);
                     } else {
-                        String msg = "Price %s is not less than current start price (%s)";
-                        long val = startPrice;
+                        String msg = "Price %s is less than current start price (%s)";
+                        double val = startPrice;
                         if (bidAmount > totalPrice - 1) {
                             msg = "Price %s is bigger than current max price (%s)";
                             val = totalPrice - 1;
@@ -108,8 +109,8 @@ public class BidService extends EntityRelatedService {
                                 BAD_REQUEST
                         );
                     }
-                }, () -> lot.setStartPrice(bid.getAmount() + 1));
-
+                }, () -> lot.setStartPrice(bidAmount + 1));
+        lot.setBuyerId(userDto.id());
     }
 
     private void deleteOldBidFromUser(Bid bid) {
